@@ -1,101 +1,96 @@
 # Installing soundcli
 
-soundcli is a **Linux** terminal app. You do **not** need Rust or a compiler to use it —
-grab a prebuilt binary or distro package from the
-[**Releases**](https://github.com/madzem/soundcli/releases) page.
+soundcli is a Linux terminal app. You do not need Rust or a compiler to use it.
+
+## Quick install
+
+x86_64 Linux:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/madzem/soundcli/main/install.sh | sh
+```
+
+This downloads the latest release binary and installs it to `/usr/local/bin`
+(or `~/.local/bin` if that needs no root).
 
 ## Requirements at runtime
 
-- A Linux desktop with a **D-Bus** session (standard on GNOME, KDE, etc.).
-- A **Chromium-family browser** or any browser (it plays the audio).
-- **PipeWire** with `wpctl` — only needed for in-app volume control; everything else
-  works without it.
+- A Linux desktop with a D-Bus session (standard on GNOME, KDE, etc.).
+- A browser, which plays the audio.
+- PipeWire's `wpctl`, only for in-app volume control; everything else works without it.
 
-`libdbus` is the only hard shared-library dependency; distro packages declare it for you.
+`libdbus` is the only shared-library dependency; the distro packages declare it for you.
 
----
+## Packages
 
-## Debian / Ubuntu / Mint / Pop!_OS (`.deb`)
+Download from the [Releases](https://github.com/madzem/soundcli/releases) page
+(replace `VERSION`, e.g. `1.4.0`).
 
-```bash
-# Replace VERSION with the latest release, e.g. 1.4.0
-curl -LO https://github.com/madzem/soundcli/releases/latest/download/soundcli_VERSION-1_amd64.deb
+Debian / Ubuntu / Mint / Pop!_OS:
+
+```sh
 sudo apt install ./soundcli_VERSION-1_amd64.deb
 ```
 
-`apt` pulls in `libdbus-1-3` automatically. Uninstall with `sudo apt remove soundcli`.
+Fedora / RHEL / openSUSE:
 
-## Fedora / RHEL / CentOS / openSUSE (`.rpm`)
-
-```bash
-curl -LO https://github.com/madzem/soundcli/releases/latest/download/soundcli-VERSION-1.x86_64.rpm
-sudo dnf install ./soundcli-VERSION-1.x86_64.rpm   # or: sudo zypper install ./...
+```sh
+sudo dnf install ./soundcli-VERSION-1.x86_64.rpm
 ```
 
-## Any distro — portable tarball
+Portable tarball (any distro):
 
-```bash
-curl -LO https://github.com/madzem/soundcli/releases/latest/download/soundcli-VERSION-x86_64-unknown-linux-gnu.tar.gz
+```sh
 tar -xzf soundcli-VERSION-x86_64-unknown-linux-gnu.tar.gz
 sudo install -m755 soundcli /usr/local/bin/soundcli
 ```
 
-Verify the download against the published checksums:
+Verify a download against the published checksums:
 
-```bash
-curl -LO https://github.com/madzem/soundcli/releases/latest/download/SHA256SUMS
+```sh
 sha256sum -c SHA256SUMS --ignore-missing
 ```
 
-## Arch Linux
+Homebrew (Linux only — soundcli does not run on macOS):
 
-No official AUR package yet. Build from the tarball with the generic steps above, or
-install via Cargo (below). Contributions of a `PKGBUILD` are welcome.
-
-## Homebrew (Linux only)
-
-soundcli cannot run on macOS (no MPRIS/D-Bus), so this is **Linuxbrew** only:
-
-```bash
+```sh
 brew install madzem/soundcli/soundcli
 ```
 
-(See [`packaging/homebrew/soundcli.rb`](packaging/homebrew/soundcli.rb) for the formula.)
+## From source
 
----
-
-## Install via Cargo (if you already have Rust)
-
-```bash
-# Build dependency: libdbus headers + pkg-config
-sudo apt install libdbus-1-dev pkg-config   # Debian/Ubuntu
-sudo dnf install dbus-devel pkgconf-pkg-config   # Fedora
-
+```sh
+sudo apt install libdbus-1-dev pkg-config        # Debian/Ubuntu build deps
 cargo install --git https://github.com/madzem/soundcli
 ```
 
-Prebuilt-binary installs (`cargo binstall soundcli`) work once the crate is published to
-crates.io.
+Or clone and build: `cargo build --release`. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Build from source (contributors)
+## Configuration
 
-```bash
-git clone https://github.com/madzem/soundcli
-cd soundcli
-cargo build --release
-./target/release/soundcli --demo
-```
+On first run soundcli writes a commented template to `~/.config/soundcli/config.yaml`
+(honouring `$XDG_CONFIG_HOME`). All keys are optional:
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `browser` | auto-detect | Browser binary to use (`chromium`, `google-chrome`, `firefox`, ...). |
+| `autoplay` | `true` | Launch a Chromium-family browser with an autoplay flag; `false` hands off to the default browser. |
+| `managed` | `false` | Use a dedicated Chromium profile under `~/.config/soundcli`. |
+| `client_id` | auto-extract | SoundCloud web `client_id` for the queue fetch. |
+| `oauth_token` | none | OAuth token, needed only for private or personalized sets. |
 
----
+The environment variables `SOUNDCLOUD_CLIENT_ID` and `SOUNDCLOUD_OAUTH_TOKEN` take
+precedence over the config file. Keep credentials in your config dir; never commit them.
 
-## First run
+## Queue metadata
 
-```bash
-soundcli --demo                                   # try the UI, no browser needed
+MPRIS exposes only the current track, so to show what is next soundcli fetches the set's
+tracklist from SoundCloud's internal API (metadata only — playback and ads stay in the
+browser). It auto-extracts the public web `client_id`; private or personalized sets need a
+token:
+
+```sh
+export SOUNDCLOUD_OAUTH_TOKEN=...
 soundcli --playlist "https://soundcloud.com/<owner>/sets/<name>"
+soundcli --dump-queue "<set-url>"   # print the fetched tracklist
 ```
-
-soundcli writes a commented config template to `~/.config/soundcli/config.yaml` on first
-run — see the [Configuration](README.md#configuration) section.
