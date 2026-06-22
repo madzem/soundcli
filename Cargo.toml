@@ -1,0 +1,65 @@
+[package]
+name = "soundcli"
+version = "1.4.0"
+edition = "2021"
+description = "Terminal remote + now-playing dashboard for SoundCloud, controlled over MPRIS"
+license = "MIT"
+repository = "https://github.com/madzem/soundcli"
+homepage = "https://github.com/madzem/soundcli"
+readme = "README.md"
+keywords = ["soundcloud", "tui", "music", "mpris", "terminal"]
+categories = ["command-line-utilities", "multimedia::audio"]
+
+[[bin]]
+name = "soundcli"
+path = "src/main.rs"
+
+[dependencies]
+ratatui = "0.29"
+crossterm = "0.28"
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
+unicode-width = "0.2"
+mpris = "2.0"
+ureq = "2"
+serde_json = "1"
+
+[profile.release]
+strip = true
+lto = true
+opt-level = "z"
+
+[package.metadata.deb]
+maintainer = "madzem <madzem@users.noreply.github.com>"
+copyright = "2026, madzem"
+license-file = ["LICENSE", "0"]
+extended-description = """\
+soundcli is a terminal remote control and now-playing dashboard for SoundCloud.
+It does not stream audio: your browser's SoundCloud tab plays the music, and
+soundcli controls it over the OS media bus (MPRIS / D-Bus) and renders a TUI."""
+section = "sound"
+priority = "optional"
+# libdbus is required (MPRIS); pipewire's wpctl is only needed for volume control.
+depends = "libc6, libdbus-1-3"
+recommends = "pipewire-bin | wireplumber"
+assets = [
+    ["target/release/soundcli", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/soundcli/README.md", "644"],
+    ["LICENSE", "usr/share/doc/soundcli/LICENSE", "644"],
+]
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/soundcli", dest = "/usr/bin/soundcli", mode = "755" },
+    { source = "README.md", dest = "/usr/share/doc/soundcli/README.md", mode = "644" },
+    { source = "LICENSE", dest = "/usr/share/doc/soundcli/LICENSE", mode = "644" },
+]
+
+[package.metadata.generate-rpm.requires]
+dbus-libs = "*"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "warn"

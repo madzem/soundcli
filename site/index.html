@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>soundcli — SoundCloud in your terminal</title>
+<meta name="description" content="soundcli is a terminal remote control and now-playing dashboard for SoundCloud, written in Rust. It controls your browser's SoundCloud tab over MPRIS and renders a TUI. Linux." />
+<meta property="og:title" content="soundcli — SoundCloud in your terminal" />
+<meta property="og:description" content="A Rust TUI that drives your SoundCloud browser tab over MPRIS. Prebuilt .deb / .rpm / Homebrew. Linux." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://madzem.github.io/soundcli/" />
+<meta name="theme-color" content="#ff5500" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  html, body {
+    background: #0f1117;
+    color: #c5c8d6;
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .hero {
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 60px 24px; gap: 48px;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,85,0,0.12) 0%, transparent 70%), #0f1117;
+  }
+  .wordmark { text-align: center; animation: fadein 0.6s ease both; }
+  .wordmark h1 { font-size: clamp(32px, 6vw, 64px); font-weight: 700; letter-spacing: -1px; color: #fff; }
+  .wordmark h1 .accent { color: #ff5500; }
+  .tagline { color: #6b7186; font-size: 14px; margin-top: 10px; letter-spacing: 0.5px; }
+  .pills { margin-top: 14px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .pill { font-size: 11px; letter-spacing: 0.5px; color: #8b90a6; border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 999px; padding: 3px 10px; }
+
+  .tui {
+    width: 100%; max-width: 780px; border: 1px solid #ff5500; border-radius: 10px;
+    background: #14171f; overflow: hidden;
+    box-shadow: 0 0 80px rgba(255,85,0,0.15), 0 24px 60px rgba(0,0,0,0.5);
+    animation: fadein 0.7s 0.1s ease both;
+  }
+  .tui-bar {
+    display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 18px;
+    border-bottom: 1px solid rgba(255,85,0,0.35); background: rgba(255,85,0,0.05); font-size: 13px;
+  }
+  .tui-bar .dot { color: #5f6478; }
+  .tui-body { padding: 20px 24px; }
+  .nowplaying { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .nowplaying .live { width: 8px; height: 8px; border-radius: 50%; background: #ff5500; display: inline-block; flex: none; animation: pulse 1.4s ease-in-out infinite; }
+  .progress { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; cursor: pointer;
+              user-select: none; font-size: 14px; white-space: nowrap; justify-content: center; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .controls { display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 18px; font-size: 13px; }
+  .controls button { cursor: pointer; font-family: inherit; }
+  .btn-side { background: none; border: none; color: #8b90a6; font-size: 13px; display: flex; align-items: center; gap: 6px; transition: color 0.15s; }
+  .btn-side:hover { color: #fff; }
+  .btn-toggle { height: 38px; padding: 0 22px; border-radius: 6px; border: none; background: #ff5500; color: #1a0d04; font-weight: 700; font-size: 13px; transition: background 0.15s; min-width: 110px; }
+  .btn-toggle:hover { background: #ff6a1f; }
+  .vol { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 12.5px; }
+  .vol .track { width: 120px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); cursor: pointer; position: relative; flex: none; }
+  .vol .fill { height: 100%; border-radius: 3px; background: #ff5500; }
+  .vol .knob { position: absolute; top: 50%; width: 10px; height: 10px; border-radius: 50%; background: #fff; transform: translate(-50%,-50%); box-shadow: 0 0 0 2px #14171f; }
+
+  .queue { border-top: 1px solid rgba(255,255,255,0.06); padding: 12px 24px 14px; }
+  .queue-label { color: #5f6478; font-size: 11px; letter-spacing: 1.5px; text-align: center; margin-bottom: 10px; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 5px 6px; border-radius: 5px; cursor: pointer; transition: background 0.12s; }
+  .row:hover { background: rgba(255,255,255,0.04); }
+  .row .rnum { width: 20px; font-size: 12px; text-align: right; flex: none; }
+  .row .rmark { width: 14px; color: #ff5500; font-size: 12px; flex: none; }
+  .row .rtitle { flex: 1; min-width: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .rartist { color: #5f6478; font-size: 12px; white-space: nowrap; text-align: right; min-width: 80px; }
+  .row .rdur { color: #4a5068; font-size: 12px; font-variant-numeric: tabular-nums; width: 36px; text-align: right; flex: none; }
+
+  .tui-foot { display: flex; gap: 18px; justify-content: center; padding: 9px 18px;
+              border-top: 1px solid rgba(255,85,0,0.35); background: rgba(255,85,0,0.05);
+              font-size: 12px; color: #6b7186; flex-wrap: wrap; }
+  .tui-foot .key { color: #e0823d; }
+
+  .install-pill-wrap { animation: fadein 0.7s 0.2s ease both; text-align: center; }
+  .install-pill-label { color: #6b7186; font-size: 12px; letter-spacing: 1px; margin-bottom: 12px; }
+  .install-pill { display: inline-flex; align-items: center; gap: 16px; padding: 14px 22px; border-radius: 8px;
+                  border: 1px solid rgba(255,255,255,0.1); background: #14171f; cursor: pointer; transition: border-color 0.15s; }
+  .install-pill:hover { border-color: rgba(255,85,0,0.5); }
+  .install-pill .pmt { color: #ff7a33; }
+  .install-pill .cmd { color: #e6e8f0; font-size: 14px; letter-spacing: 0.3px; }
+  .install-pill .cp { color: #6b7186; font-size: 12px; margin-left: 8px; }
+
+  .section { max-width: 820px; margin: 0 auto; padding: 80px 24px; }
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+  .card { padding: 22px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.07); background: #14171f; }
+  .card h3 { color: #ff5500; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+  .card p { color: #8b90a6; font-size: 12.5px; line-height: 1.7; }
+
+  .eyebrow { color: #6b7186; font-size: 11px; letter-spacing: 1.5px; margin-bottom: 18px; }
+  .code { border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; background: #14171f; padding: 22px 24px; font-size: 13.5px; line-height: 2; overflow-x: auto; }
+  .code .pmt { color: #ff7a33; }
+  .code .cmd { color: #e6e8f0; }
+  .code .arg { color: #c8b9f0; }
+  .code .cmt { color: #5f6478; }
+
+  .install-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .install-card { border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; background: #14171f; padding: 18px 20px; }
+  .install-card h4 { color: #f0ece4; font-size: 13px; margin-bottom: 4px; }
+  .install-card .sub { color: #6b7186; font-size: 11px; margin-bottom: 12px; }
+  .install-card pre { color: #e6e8f0; font-size: 12.5px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+  .install-card pre .pmt { color: #ff7a33; }
+  .note { color: #6b7186; font-size: 12px; line-height: 1.7; margin-top: 18px; }
+  .note a { color: #ff5500; text-decoration: none; }
+  .note a:hover { color: #ff7a33; }
+
+  footer { border-top: 1px solid rgba(255,255,255,0.06); padding: 28px 24px; text-align: center; font-size: 12px; color: #4a5068; }
+  footer a { color: #ff5500; text-decoration: none; }
+  footer a:hover { color: #ff7a33; }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wordmark">
+    <h1>sound<span class="accent">cli</span></h1>
+    <div class="tagline">SoundCloud in your terminal</div>
+    <div class="pills">
+      <span class="pill">Rust</span>
+      <span class="pill">Ratatui TUI</span>
+      <span class="pill">MPRIS · Linux</span>
+    </div>
+  </div>
+
+  <!-- live TUI demo -->
+  <div class="tui" aria-label="soundcli interface demo">
+    <div class="tui-bar">
+      <span style="color:#ff5500;font-weight:700;">soundcli</span>
+      <span class="dot">·</span>
+      <span style="color:#c8b9f0;font-weight:700;" id="playlistName">Night Drive</span>
+      <span class="dot">·</span>
+      <span style="color:#6b7186;" id="trackCount">6 tracks</span>
+    </div>
+
+    <div class="tui-body">
+      <div class="nowplaying">
+        <span class="live" id="liveDot"></span>
+        <span style="color:#ff5500;font-size:12px;font-weight:700;letter-spacing:1px;">NOW PLAYING</span>
+        <span style="color:#f0ece4;font-weight:700;font-size:14px;" id="curTitle"></span>
+        <span style="color:#5f6478;">—</span>
+        <span style="color:#b6bacb;font-size:13px;" id="curArtist"></span>
+      </div>
+
+      <div class="progress" id="seekBar">
+        <span class="tnum" style="color:#ff7a33;" id="elapsed"></span>
+        <span style="color:#5f6478;">[</span><span style="color:#ff5500;letter-spacing:0.5px;" id="barFilled"></span><span style="color:#ffb27a;" id="barHead"></span><span style="color:#2e3348;letter-spacing:0.5px;" id="barEmpty"></span><span style="color:#5f6478;">]</span>
+        <span class="tnum" style="color:#ff7a33;">-<span id="remaining"></span></span>
+        <span style="color:#5f6478;">/</span>
+        <span class="tnum" style="color:#6b7186;" id="duration"></span>
+      </div>
+
+      <div class="controls">
+        <button class="btn-side" id="prev">⏮ prev</button>
+        <button class="btn-toggle" id="toggle"></button>
+        <button class="btn-side" id="next">next ⏭</button>
+      </div>
+
+      <div class="vol">
+        <span style="color:#6b7186;">vol</span>
+        <div class="track" id="volTrack">
+          <div class="fill" id="volFill"></div>
+          <div class="knob" id="volKnob"></div>
+        </div>
+        <span style="color:#b6bacb;width:36px;" class="tnum" id="volPct"></span>
+      </div>
+    </div>
+
+    <div class="queue">
+      <div class="queue-label">QUEUE</div>
+      <div id="queue"></div>
+    </div>
+
+    <div class="tui-foot">
+      <span><span class="key">space</span> play</span>
+      <span><span class="key">↑↓</span> select</span>
+      <span><span class="key">enter</span> jump</span>
+      <span><span class="key">↔</span> seek</span>
+      <span><span class="key">+−</span> vol</span>
+      <span><span class="key">q</span> quit</span>
+    </div>
+  </div>
+
+  <!-- headline install -->
+  <div class="install-pill-wrap">
+    <div class="install-pill-label">INSTALL</div>
+    <div class="install-pill" id="copyPill" title="Click to copy">
+      <span class="pmt">$</span>
+      <span class="cmd">brew install madzem/soundcli/soundcli</span>
+      <span class="cp" id="copyLabel">copy</span>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS / FEATURES -->
+<section class="section features">
+  <div class="card">
+    <h3>Controls your browser</h3>
+    <p>soundcli never streams audio. Your logged-in SoundCloud tab plays the music — full tracks, your account, ads as usual — and soundcli drives it over MPRIS / D-Bus.</p>
+  </div>
+  <div class="card">
+    <h3>Queue browser</h3>
+    <p>Pass a set URL and soundcli fetches the tracklist. Scroll the whole queue, select any track, and jump straight to it with Enter.</p>
+  </div>
+  <div class="card">
+    <h3>Keyboard-driven</h3>
+    <p>No mouse needed. Every action has a key — play/pause, next/prev, seek, volume, and quit — rendered in a clean Ratatui interface.</p>
+  </div>
+  <div class="card">
+    <h3>Native Rust binary</h3>
+    <p>A single small binary, no runtime to install. Ships prebuilt as <code>.deb</code>, <code>.rpm</code>, a portable tarball, and Homebrew. Linux (needs D-Bus; PipeWire for volume).</p>
+  </div>
+</section>
+
+<!-- INSTALL -->
+<section class="section" style="padding-top: 0;">
+  <div class="eyebrow">INSTALL — NO RUST OR COMPILER NEEDED</div>
+  <div class="install-grid">
+    <div class="install-card">
+      <h4>Debian · Ubuntu · Mint</h4>
+      <div class="sub">.deb package</div>
+      <pre><span class="pmt">$</span> sudo apt install ./soundcli_*_amd64.deb</pre>
+    </div>
+    <div class="install-card">
+      <h4>Fedora · RHEL · openSUSE</h4>
+      <div class="sub">.rpm package</div>
+      <pre><span class="pmt">$</span> sudo dnf install ./soundcli-*.x86_64.rpm</pre>
+    </div>
+    <div class="install-card">
+      <h4>Any distro</h4>
+      <div class="sub">portable binary</div>
+      <pre><span class="pmt">$</span> tar -xzf soundcli-*-linux-gnu.tar.gz
+<span class="pmt">$</span> sudo install -m755 soundcli /usr/local/bin/</pre>
+    </div>
+    <div class="install-card">
+      <h4>Homebrew (Linux)</h4>
+      <div class="sub">Linuxbrew</div>
+      <pre><span class="pmt">$</span> brew install madzem/soundcli/soundcli</pre>
+    </div>
+    <div class="install-card">
+      <h4>Cargo</h4>
+      <div class="sub">if you already have Rust</div>
+      <pre><span class="pmt">$</span> cargo install --git \
+    https://github.com/madzem/soundcli</pre>
+    </div>
+  </div>
+  <p class="note">
+    Grab packages from the
+    <a href="https://github.com/madzem/soundcli/releases">Releases</a> page. Full
+    step-by-step instructions — including checksum verification — are in
+    <a href="https://github.com/madzem/soundcli/blob/main/INSTALL.md">INSTALL.md</a>.
+    soundcli is Linux-only: it needs a D-Bus session (any standard desktop) and, for
+    in-app volume, PipeWire's <code>wpctl</code>.
+  </p>
+</section>
+
+<!-- USAGE -->
+<section class="section" style="padding-top: 0;">
+  <div class="eyebrow">USAGE</div>
+  <div class="code">
+    <div><span class="pmt">$</span> <span class="cmd">soundcli --playlist</span> <span class="arg">soundcloud.com/&lt;owner&gt;/sets/&lt;name&gt;</span>  <span class="cmt"># open a set &amp; control it</span></div>
+    <div><span class="pmt">$</span> <span class="cmd">soundcli</span>  <span class="cmt"># control whatever SoundCloud tab is already playing</span></div>
+    <div><span class="pmt">$</span> <span class="cmd">soundcli --demo</span>  <span class="cmt"># try the UI with sample data, no browser</span></div>
+    <div><span class="pmt">$</span> <span class="cmd">soundcli --list-players</span>  <span class="cmt"># list MPRIS players (diagnose detection)</span></div>
+    <div><span class="pmt">$</span> <span class="cmd">soundcli --dump-queue</span> <span class="arg">&lt;set-url&gt;</span>  <span class="cmt"># print the fetched tracklist</span></div>
+    <div><span class="pmt">$</span> <span class="cmd">soundcli --help</span></div>
+  </div>
+</section>
+
+<footer>
+  <span>soundcli · MIT License · </span>
+  <a href="https://github.com/madzem/soundcli">github.com/madzem/soundcli</a>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  // soundcli's real --demo tracklist (see src/controller/demo.rs).
+  var LIB = [
+    { title: "Midnight City Lights", artist: "Neon Coast", dur: 222 },
+    { title: "Sunset Overdrive", artist: "Palm Reader", dur: 184 },
+    { title: "Lo-Fi Saturdays", artist: "bedroom.wav", dur: 251 },
+    { title: "Drive Slow Homie", artist: "VHS Dreams", dur: 199 },
+    { title: "Concrete Jungle Beat", artist: "Eastside Collective", dur: 165 },
+    { title: "Analog Hearts", artist: "Tape Deck", dur: 233 }
+  ];
+  var W = 38; // progress bar width, matches the TUI feel
+
+  var state = { idx: 0, playing: true, elapsed: 37, volume: 0.7, copied: false };
+
+  var $ = function (id) { return document.getElementById(id); };
+  function fmt(sec) {
+    sec = Math.max(0, Math.floor(sec));
+    return Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0");
+  }
+  function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+  // Build queue rows once; update their dynamic bits on render.
+  var queueEl = $("queue");
+  var rows = LIB.map(function (t, i) {
+    var row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML =
+      '<span class="rnum"></span>' +
+      '<span class="rmark"></span>' +
+      '<span class="rtitle"></span>' +
+      '<span class="rartist"></span>' +
+      '<span class="rdur"></span>';
+    row.children[0].textContent = String(i + 1).padStart(2, "0");
+    row.children[2].textContent = t.title;
+    row.children[3].textContent = t.artist;
+    row.children[4].textContent = fmt(t.dur);
+    row.addEventListener("click", function () {
+      state.idx = i; state.elapsed = 0; state.playing = true; render();
+    });
+    queueEl.appendChild(row);
+    return row;
+  });
+
+  function render() {
+    var cur = LIB[state.idx];
+    var pct = clamp(state.elapsed / cur.dur, 0, 1);
+    var fill = clamp(Math.round(pct * W), 1, W);
+
+    $("curTitle").textContent = cur.title;
+    $("curArtist").textContent = cur.artist;
+    $("liveDot").style.display = state.playing ? "inline-block" : "none";
+    $("elapsed").textContent = fmt(state.elapsed);
+    $("duration").textContent = fmt(cur.dur);
+    $("remaining").textContent = fmt(cur.dur - state.elapsed);
+    $("barFilled").textContent = "=".repeat(fill - 1);
+    $("barHead").textContent = ">";
+    $("barEmpty").textContent = "·".repeat(W - fill);
+    $("toggle").textContent = state.playing ? "❚❚  pause" : "▶  play";
+
+    var vp = Math.round(state.volume * 100) + "%";
+    $("volPct").textContent = vp;
+    $("volFill").style.width = vp;
+    $("volKnob").style.left = vp;
+
+    $("copyLabel").textContent = state.copied ? "✓ copied" : "copy";
+
+    rows.forEach(function (row, i) {
+      var active = i === state.idx;
+      row.children[0].style.color = active ? "#ff5500" : "#4a5068";
+      row.children[1].textContent = active ? (state.playing ? "●" : "▶") : " ";
+      row.children[2].style.color = active ? "#ff7a33" : "#c5c8d6";
+      row.children[2].style.fontWeight = active ? "700" : "400";
+      row.style.background = active ? "rgba(255,85,0,0.09)" : "transparent";
+    });
+  }
+
+  function nextTrack() { state.idx = (state.idx + 1) % LIB.length; state.elapsed = 0; }
+  function prevTrack() {
+    if (state.elapsed > 3) { state.elapsed = 0; }
+    else { state.idx = (state.idx - 1 + LIB.length) % LIB.length; state.elapsed = 0; }
+  }
+  function changeVol(d) { state.volume = +clamp(state.volume + d, 0, 1).toFixed(2); }
+
+  // tick: advance playback ~1s, wrapping at track end
+  setInterval(function () {
+    if (!state.playing) return;
+    var dur = LIB[state.idx].dur;
+    if (state.elapsed + 1 >= dur) { nextTrack(); } else { state.elapsed += 1; }
+    render();
+  }, 1000);
+
+  $("toggle").addEventListener("click", function () { state.playing = !state.playing; render(); });
+  $("next").addEventListener("click", function () { nextTrack(); render(); });
+  $("prev").addEventListener("click", function () { prevTrack(); render(); });
+
+  $("volTrack").addEventListener("click", function (e) {
+    var r = e.currentTarget.getBoundingClientRect();
+    state.volume = +clamp((e.clientX - r.left) / r.width, 0, 1).toFixed(2);
+    render();
+  });
+  $("seekBar").addEventListener("click", function (e) {
+    var r = e.currentTarget.getBoundingClientRect();
+    state.elapsed = Math.floor(clamp((e.clientX - r.left) / r.width, 0, 1) * LIB[state.idx].dur);
+    render();
+  });
+
+  $("copyPill").addEventListener("click", function () {
+    var cmd = "brew install madzem/soundcli/soundcli";
+    if (navigator.clipboard) { navigator.clipboard.writeText(cmd).catch(function () {}); }
+    state.copied = true; render();
+    setTimeout(function () { state.copied = false; render(); }, 2000);
+  });
+
+  window.addEventListener("keydown", function (e) {
+    if (e.key === " ") { e.preventDefault(); state.playing = !state.playing; }
+    else if (e.key === "n") { nextTrack(); }
+    else if (e.key === "p") { prevTrack(); }
+    else if (e.key === "+" || e.key === "=") { changeVol(0.05); }
+    else if (e.key === "-" || e.key === "_") { changeVol(-0.05); }
+    else { return; }
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
