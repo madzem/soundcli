@@ -19,22 +19,6 @@ Rust ([Ratatui](https://ratatui.rs)). It does not stream audio or remove ads: yo
 logged-in browser tab plays the music, and soundcli controls it over the OS media bus
 (MPRIS / D-Bus) and renders the interface in your terminal.
 
-```
-╭────────────────────────────────────────────────────────────╮
-│ soundcli · Night Drive · 6 tracks                          │
-│                                                            │
-│ NOW PLAYING ●  Midnight City Lights  —  Neon Coast         │
-│ 0:37 [===========>-----------------------]  -3:05 / 3:42   │
-│ prev      || pause      next            vol ███████░ 70%   │
-│                                                            │
-│ QUEUE                                                      │
-│  01 ●  Midnight City Lights          Neon Coast   3:42     │
-│  02    Sunset Overdrive              Palm Reader   3:04    │
-│                                                            │
-│ space play  ↑↓ select  enter jump  ←→ seek  +- vol  q quit │
-╰────────────────────────────────────────────────────────────╯
-```
-
 ## Features
 
 - Now-playing dashboard — title, artist, progress bar, play state.
