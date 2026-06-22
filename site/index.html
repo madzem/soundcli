@@ -196,7 +196,7 @@
     <div class="install-pill-label">INSTALL</div>
     <div class="install-pill" id="copyPill" title="Click to copy">
       <span class="pmt">$</span>
-      <span class="cmd">brew install madzem/soundcli/soundcli</span>
+      <span class="cmd">curl -fsSL https://raw.githubusercontent.com/madzem/soundcli/main/install.sh | sh</span>
       <span class="cp" id="copyLabel">copy</span>
     </div>
   </div>
@@ -392,7 +392,7 @@
   });
 
   $("copyPill").addEventListener("click", function () {
-    var cmd = "brew install madzem/soundcli/soundcli";
+    var cmd = "curl -fsSL https://raw.githubusercontent.com/madzem/soundcli/main/install.sh | sh";
     if (navigator.clipboard) { navigator.clipboard.writeText(cmd).catch(function () {}); }
     state.copied = true; render();
     setTimeout(function () { state.copied = false; render(); }, 2000);
